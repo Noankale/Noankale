@@ -97,7 +97,6 @@ class TestJaccardSimilarity:
         words1 = ['苹果', '香蕉', '橙子']
         words2 = ['苹果', '梨', '葡萄']
         result = main.jaccard_similarity(words1, words2)
-        # 交集:1个(苹果), 并集:5个 → 1/5=0.2
         assert abs(result - 0.2) < 0.0001
     
     def test_jaccard_similarity_empty_first(self):
@@ -136,7 +135,6 @@ class TestLevenshteinSimilarity:
         words1 = ['苹果', '香蕉']
         words2 = ['汽车', '房子', '电脑']
         result = main.levenshtein_similarity(words1, words2)
-        # 距离=3, 最大长度=3 → 1-3/3=0
         assert abs(result - 0.0) < 0.0001
     
     def test_levenshtein_similarity_partial(self):
@@ -144,7 +142,6 @@ class TestLevenshteinSimilarity:
         words1 = ['苹果', '香蕉', '橙子']
         words2 = ['苹果', '梨', '葡萄']
         result = main.levenshtein_similarity(words1, words2)
-        # 需要计算编辑距离，结果应该在0-1之间
         assert 0 < result < 1
     
     def test_levenshtein_similarity_empty_first(self):
@@ -167,7 +164,6 @@ class TestLevenshteinSimilarity:
         words2 = []
         result = main.levenshtein_similarity(words1, words2)
         assert result == 1.0
-
 
 
 if __name__ == "__main__":

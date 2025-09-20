@@ -2,7 +2,8 @@
 from line_profiler import LineProfiler
 import cProfile
 import pstats
-from main import text_process, cosine_similarity, jaccard_similarity, levenshtein_similarity
+import sys
+from main import text_process, cosine_similarity, jaccard_similarity, levenshtein_similarity,main
 
 def setup_profiler():
   # 创建性能分析器
@@ -13,45 +14,48 @@ def setup_profiler():
   profiler.add_function(cosine_similarity)
   profiler.add_function(jaccard_similarity)
   profiler.add_function(levenshtein_similarity)
+  profiler.add_function(main)
   
   return profiler
 
 # 测试性能
-def test_performance():
-  # 测试数据
-
-  originalPath = r"D:\work\软件工程\orig.txt"
-  addPath = r"D:\work\软件工程\orig_0.8_del.txt"
-
-  with open(originalPath,'r',encoding='utf8') as f:
-    originalText = f.read()
-  with open(addPath,'r',encoding='utf8') as f:
-    addText = f.read()
-
-  # 处理文本
-  words1 = text_process(originalText)
-  words2 = text_process(addText)
-  
-  # 计算相似度
-  cosine_similarity(words1,words2)
-  jaccard_similarity(words1,words2)
-  levenshtein_similarity(words1,words2)
+def test_complete_performance():
+    # 备份原始参数
+    original_argv = sys.argv.copy()
+    
+    # 设置测试参数
+    sys.argv = ['main.py', r'D:\work\rjgc\orig.txt', r'D:\work\rjgc\orig_0.8_del.txt', r'D:\work\rjgc\orig_result.txt']
+    
+    try:
+        # 运行完整的main函数
+        main()
+    finally:
+        # 恢复原始参数
+        sys.argv = original_argv
 
 if __name__ == '__main__':
-  # 设置分析器
-  profiler = setup_profiler()
-  
-  # 开始分析
-  profiler.enable_by_count()
-  
-  # 运行测试
-  test_performance()
-  
-  # 结束分析
-  profiler.disable_by_count()
-  
-  # 输出结果
-  print("\n" + "="*50)
-  print("逐行性能分析结果:")
-  print("="*50)
-  profiler.print_stats()
+    print("开始性能分析...")
+    
+    # 方法2: 使用cProfile进行详细分析
+    print("\n" + "="*50)
+    print("cProfile性能分析结果:")
+    print("="*50)
+    
+    profiler = cProfile.Profile()
+    profiler.enable()
+    test_complete_performance()
+    profiler.disable()
+    
+    stats = pstats.Stats(profiler)
+    stats.sort_stats('cumulative')
+    stats.print_stats(15)
+    
+    # 方法3: LineProfiler逐行分析
+    print("\n" + "="*50)
+    print("LineProfiler逐行分析结果:")
+    print("="*50)
+    
+    line_profiler = setup_profiler()
+    line_profiler_wrapper = line_profiler(test_complete_performance)
+    line_profiler_wrapper()
+    line_profiler.print_stats()
