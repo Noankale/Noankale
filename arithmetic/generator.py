@@ -22,8 +22,12 @@ class ExerciseGenerator:
     for i in range(num):
       # 生成一道题目
       exercise,answer = self.generate_expression(3)
+      if exercise.startswith('(') and exercise.endswith(')'):
+        exercise = exercise[1:-1]
       if self.is_Unique(exercise):
+        exercise = f"{i+1}. {exercise}"
         exercises.append(f"{exercise} = ")
+        answer = f"{i+1}. {answer}"
         answers.append(str(answer))
       
 
@@ -43,15 +47,13 @@ class ExerciseGenerator:
             if left > right:
                 exercise = f"{right} × {left}"
                 
-        # 对于更复杂的表达式，我们可以使用哈希来简化比较
+        # 使用哈希简化比较
         return hashlib.md5(exercise.encode()).hexdigest()
     except:
         return hashlib.md5(exercise.encode()).hexdigest()
 
 
   def is_Unique(self,exercise:str):
-    if exercise.startswith('(') and exercise.endswith(')'):
-      exercise = exercise[1:-1]
     normalizedExercise = self.normalized_exercise(exercise)
     if normalizedExercise not in self.hashList:
        self.hashList.add(normalizedExercise)
@@ -61,7 +63,23 @@ class ExerciseGenerator:
 
   # 通过分数类生成一个数字
   def generate_number(self):
-    return random.randint()
+    isInteger = random.choice([True,False])
+
+    if isInteger:
+      integerPart = random.randint(1,self.range)
+      return Fraction(
+        numerator = 0,
+        denominator = 1,
+        integerPart = integerPart
+        )
+    else:
+      denominator = random.randint(2,self.range)
+      numerator = random.randint(1,denominator - 1)
+      return Fraction(
+        numerator = numerator, 
+        denominator = denominator,
+        integerPart = 0
+        )
 
   # 生成算术表达式
   def generate_expression(self,maxOpCount):
@@ -72,8 +90,10 @@ class ExerciseGenerator:
     # 随机生成表达式操作符数量
     opCount = random.randint(1,maxOpCount)
     # 递归生成左右表达式
-    leftExpression, leftVal = self.generate_expression(opCount - 1)
-    rightExpression, rightVal = self.generate_expression(opCount - 1)
+    leftOpCount = random.randint( 0,opCount - 1 )
+    rightOpCount = opCount - 1 - leftOpCount
+    leftExpression, leftVal = self.generate_expression(leftOpCount)
+    rightExpression, rightVal = self.generate_expression(rightOpCount)
 
     # 随机当前操作符
     operator = random.choice(self.operators)
@@ -127,6 +147,15 @@ class ExerciseChecker:
             answers.append(answer)
         return
       
+      if len(exercises) != len(answers):
+        raise Exception("错误：题目与答案数量不匹配。")
+
+      for i in range(length):
+        exercise = exercises[i]
+        answer = answers[i]
+
+        if "=" not in exercise:
+          raise Exception()
       
     except Exception as e:
       print(e)

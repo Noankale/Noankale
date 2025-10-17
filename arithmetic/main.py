@@ -31,7 +31,7 @@ def main():
     # 若为生成模式 -> 调用生成题目函数
       print(f"正在生成题目……")
       generator = ExerciseGenerator(args.r)
-      exercise,answers = generator.generate_questions(args.n)
+      exercise,answers = generator.generate_exercise(args.n)
     # 将题目和答案分别导出
       if write_to_file('Exercises.txt', exercise):
               print("题目已写入Exercises.txt")
