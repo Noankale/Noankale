@@ -17,8 +17,8 @@ def main():
   parser = argparse.ArgumentParser(description="一个四则运算生成程序")
   parser.add_argument('-n',type=int,help='题目数量')
   parser.add_argument('-r',type=int,help='题目范围')
-  parser.add_argument('-e',type=int,help='题目路径')
-  parser.add_argument('-a',type=int,help='答案路径')
+  parser.add_argument('-e',type=str,help='题目路径')
+  parser.add_argument('-a',type=str,help='答案路径')
 
   args = parser.parse_args()
 
@@ -54,3 +54,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# python main.py -e Exercises.txt -a Answers.txt
+# python main.py -n 10 -r 10

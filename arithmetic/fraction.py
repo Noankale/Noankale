@@ -101,4 +101,3 @@ class Fraction:
       
       # 合并带分数
       return "'".join(parts) if abs_integer != 0 else ''.join(parts)
-    
