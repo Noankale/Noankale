@@ -1,314 +1,320 @@
-# 题目相关处理模块
 import random
 import hashlib
+import re
 from fraction import Fraction
 
-# 生成题目与答案
+
 class ExerciseGenerator:
-  
-  # 初始化
-  def __init__(self,range):
-    self.range = range
-    self.operators = ['+','-','×','÷']
-    self.exercises = set()
-    self.hashList = set()
-    pass
+    """生成算术练习题及答案"""
 
-  # 生成题目方法
-  def generate_exercise(self,num):
-    exercises = []
-    answers = []
-    count = 0
-    i = 0
+    def __init__(self, range_val):
+        self.range = range_val  # 数字范围
+        self.operators = ['+', '-', '×', '÷']  # 支持的运算符
+        self.hashList = set()  # 用于存储题目哈希值，确保唯一性
 
-    while count < num and i < num * 2:  # 防止无限循环
-        # 生成一道题目
-        exercise, answer = self.generate_expression(3)
-        if exercise.startswith('(') and exercise.endswith(')'):
-            exercise = exercise[1:-1]
-        if self.is_Unique(exercise):
-            count += 1
-            exercise_str = f"{count}. {exercise}"
-            exercises.append(f"{exercise_str} = ")
-            answer_str = f"{count}. {answer}"
-            answers.append(str(answer_str))
-        i += 1
-    
-    # print(f"实际生成题目数量: {count} (尝试次数: {i})")
-    return exercises, answers
+    def generate_exercise(self, num):
+        """生成指定数量的练习题及答案"""
+        exercises = []
+        answers = []
+        count = 0
+        i = 0
 
-  # 标准化题目
-  def normalized_exercise(self,exercise):
-    try:
-        # 检查是否是简单的二元运算
-        if exercise.count('+') == 1 and '(' not in exercise and '×' not in exercise and '-' not in exercise and '÷' not in exercise:
-            left, right = exercise.split(' + ')
-            if left > right:
-                exercise = f"{right} + {left}"
-                
-        if exercise.count('×') == 1 and '(' not in exercise and '+' not in exercise and '-' not in exercise and '÷' not in exercise:
-            left, right = exercise.split(' × ')
-            if left > right:
-                exercise = f"{right} × {left}"
-                
-        # 使用哈希简化比较
-        return hashlib.md5(exercise.encode()).hexdigest()
-    except:
-        return hashlib.md5(exercise.encode()).hexdigest()
+        # 最多尝试10*num次生成，防止无限循环
+        max_attempts = num * 10
+        while count < num and i < max_attempts:
+            try:
+                exercise, answer = self.generate_expression(3)
+                # 去除外层括号
+                if exercise.startswith('(') and exercise.endswith(')'):
+                    exercise = exercise[1:-1]
+                # 检查唯一性
+                if self.is_Unique(exercise):
+                    count += 1
+                    exercises.append(f"{count}. {exercise} = ")
+                    answers.append(f"{count}. {answer}")
+            except (ValueError, ZeroDivisionError):
+                # 忽略生成过程中的异常，继续尝试
+                pass
+            i += 1
+
+        return exercises, answers
+
+    def normalized_exercise(self, exercise):
+        # 校验表达式格式
+        exercise = exercise.strip()
+        # 检查基本格式：数字、运算符、括号的正确组合
+        if not re.fullmatch(r'^([\d/\'\(\)]+\s*[\+\-×÷]\s*)*[\d/\'\(\)]+$', exercise):
+            raise ValueError("无效的表达式格式")
+
+        # 检查括号匹配
+        stack = []
+        for char in exercise:
+            if char == '(':
+                stack.append(char)
+            elif char == ')':
+                if not stack:
+                    raise ValueError("无效的表达式格式")
+                stack.pop()
+        if stack:
+            raise ValueError("无效的表达式格式")
+
+        try:
+            # 处理加法交换律
+            if '+' in exercise and '(' not in exercise and exercise.count('+') == 1:
+                parts = exercise.split(' + ')
+                if len(parts) == 2:
+                    left, right = parts
+                    if left > right:
+                        return f"{right} + {left}"
+
+            # 处理乘法交换律
+            if '×' in exercise and '(' not in exercise and exercise.count('×') == 1:
+                parts = exercise.split(' × ')
+                if len(parts) == 2:
+                    left, right = parts
+                    if left > right:
+                        return f"{right} × {left}"
+
+            return exercise
+        except:
+            return exercise
+
+    def is_Unique(self, exercise: str):
+        try:
+            normalized = self.normalized_exercise(exercise)
+        except ValueError:
+            normalized = exercise  # 格式错误时使用原始字符串
+
+        # 计算哈希值
+        hash_val = hashlib.md5(normalized.encode()).hexdigest()
+        if hash_val not in self.hashList:
+            self.hashList.add(hash_val)
+            return True
+        return False
+
+    def generate_number(self):
+        """生成自然数或真分数"""
+        is_integer = random.choice([True, False])
+
+        if is_integer:
+            # 生成自然数
+            integer_part = random.randint(1, self.range - 1)
+            return Fraction(numerator=0, denominator=1, integerPart=integer_part)
+        else:
+            # 生成真分数
+            denominator = random.randint(2, self.range - 1)
+            numerator = random.randint(1, denominator - 1)
+            return Fraction(numerator=numerator, denominator=denominator, integerPart=0)
+
+    def generate_expression(self, max_op_count):
+        """递归生成算术表达式"""
+        if max_op_count == 0:
+            # 基础数字（无运算符）
+            num = self.generate_number()
+            return (str(num), num)
+
+        # 随机生成运算符数量
+        op_count = random.randint(1, max_op_count)
+        # 拆分左右表达式的运算符数量
+        left_op_count = random.randint(0, op_count - 1)
+        right_op_count = op_count - 1 - left_op_count
+
+        # 递归生成左右表达式
+        left_expr, left_val = self.generate_expression(left_op_count)
+        right_expr, right_val = self.generate_expression(right_op_count)
+
+        # 随机选择运算符
+        operator = random.choice(self.operators)
+        result = None
+
+        # 计算结果
+        match operator:
+            case '+':
+                result = left_val + right_val
+            case '-':
+                # 确保减法结果非负
+                if left_val < right_val:
+                    left_expr, right_expr = right_expr, left_expr
+                    left_val, right_val = right_val, left_val
+                result = left_val - right_val
+            case '×':
+                result = left_val * right_val
+            case '÷':
+                # 确保除数不为0
+                if right_val.is_zero():
+                    return self.generate_expression(max_op_count)
+                result = left_val / right_val
+            case _:
+                raise ValueError(f"不支持的运算符 '{operator}'")
+
+        # 包装为带括号的表达式
+        return (f"({left_expr} {operator} {right_expr})", result)
 
 
-  def is_Unique(self,exercise:str):
-    normalizedExercise = self.normalized_exercise(exercise)
-    if normalizedExercise not in self.hashList:
-       self.hashList.add(normalizedExercise)
-       return True
-    return False
-    pass
-
-  # 通过分数类生成一个数字
-  def generate_number(self):
-    isInteger = random.choice([True,False])
-
-    if isInteger:
-      integerPart = random.randint(1,self.range)
-      return Fraction(
-        numerator = 0,
-        denominator = 1,
-        integerPart = integerPart
-        )
-    else:
-      denominator = random.randint(2,self.range)
-      numerator = random.randint(1,denominator - 1)
-      return Fraction(
-        numerator = numerator, 
-        denominator = denominator,
-        integerPart = 0
-        )
-
-  # 生成算术表达式
-  def generate_expression(self,maxOpCount):
-    if maxOpCount == 0:
-      num = self.generate_number()
-      return (str(num),num)
-    
-    # 随机生成表达式操作符数量
-    opCount = random.randint(1,maxOpCount)
-    # 递归生成左右表达式
-    leftOpCount = random.randint( 0,opCount - 1 )
-    rightOpCount = opCount - 1 - leftOpCount
-    leftExpression, leftVal = self.generate_expression(leftOpCount)
-    rightExpression, rightVal = self.generate_expression(rightOpCount)
-
-    # 随机当前操作符
-    operator = random.choice(self.operators)
-
-    result = None
-    match operator:
-      case '+':
-        result = leftVal + rightVal
-      case '-':
-        if leftVal < rightVal:
-          leftExpression, rightExpression = rightExpression, leftExpression
-          leftVal, rightVal = rightVal, leftVal  
-        result = leftVal - rightVal
-      case '×':
-        result = leftVal * rightVal
-      case '÷':
-        if rightVal == 0:
-           return self.generate_expression(maxOpCount)
-        temp = leftVal/rightVal
-        result = temp
-      case _:
-        raise Exception("运算符错误")
-      
-    expression = f"({leftExpression} {operator} {rightExpression})"
-    return (expression, result)
-
-
-# 批改题目
 class ExerciseChecker:
-    
+    """批改练习题答案"""
+
     @staticmethod
-    # 在运算符未替换时执行分词
     def tokenize(exercise):
+        """将表达式分词"""
         tokens = []
         current = ""
         for char in exercise:
-            if char in '()+-×÷':  
-                if current and current.strip():
+            if char in '()+-×÷':
+                if current.strip():
                     tokens.append(current.strip())
                     current = ""
                 tokens.append(char)
             else:
                 current += char
-        if current and current.strip():
+        if current.strip():
             tokens.append(current.strip())
         return tokens
-    
+
     @staticmethod
-    # 将分词出的数字转换为Fraction
     def parse_fraction(token):
+        """解析分数字符串为Fraction对象"""
         try:
             return Fraction.from_string(token)
         except:
             return None
-    
+
     @staticmethod
-    # 解析题目
     def parse_exercise(exercise):
-        # 对原题目进行分词，得到运算符和数字
-        tokens = ExerciseChecker.tokenize(exercise)
-        # print(f"分词结果: {expression} -> {tokens}")
-        
-        def find_matching_parenthesis(tokens, start):
-            count = 1
-            for i in range(start + 1, len(tokens)):
-                if tokens[i] == '(':
-                    count += 1
-                elif tokens[i] == ')':
-                    count -= 1
-                    if count == 0:
-                        return i
-            return -1
-        
-        def evaluate(tokens):
-            if not tokens:
+        """解析并计算表达式结果"""
+        try:
+            valid_ops = {'+', '-', '×', '÷', '(', ')'}
+            tokens = ExerciseChecker.tokenize(exercise)
+
+            # 检查非法符号
+            for token in tokens:
+                if token in valid_ops:
+                    continue
+                if not re.fullmatch(r'^\d+$|^\d+\'\d+/\d+$|^\d+/\d+$', token):
+                    return None
+
+            # 查找匹配的括号
+            def find_matching_parenthesis(tokens, start):
+                count = 1
+                for i in range(start + 1, len(tokens)):
+                    if tokens[i] == '(':
+                        count += 1
+                    elif tokens[i] == ')':
+                        count -= 1
+                        if count == 0:
+                            return i
+                return -1  # 缺少右括号
+
+            # 递归计算表达式
+            def evaluate(tokens):
+                if not tokens:
+                    return None
+
+                # 处理括号
+                i = 0
+                while i < len(tokens):
+                    if tokens[i] == '(':
+                        j = find_matching_parenthesis(tokens, i)
+                        if j == -1:
+                            return None
+                        inner_result = evaluate(tokens[i + 1:j])
+                        if inner_result is None:
+                            return None
+                        tokens = tokens[:i] + [str(inner_result)] + tokens[j + 1:]
+                    else:
+                        i += 1
+
+                # 单数字直接返回
+                if len(tokens) == 1:
+                    return ExerciseChecker.parse_fraction(tokens[0])
+
+                # 先处理乘除
+                for i in range(len(tokens) - 1, -1, -1):
+                    if tokens[i] in ['×', '÷']:
+                        left = evaluate(tokens[:i])
+                        right = evaluate(tokens[i + 1:])
+                        if left is None or right is None:
+                            return None
+                        if tokens[i] == '×':
+                            return left * right
+                        elif tokens[i] == '÷':
+                            if right.is_zero():
+                                return None
+                            return left / right
+
+                # 再处理加减
+                for i in range(len(tokens) - 1, -1, -1):
+                    if tokens[i] in ['+', '-']:
+                        left = evaluate(tokens[:i])
+                        right = evaluate(tokens[i + 1:])
+                        if left is None or right is None:
+                            return None
+                        if tokens[i] == '+':
+                            return left + right
+                        elif tokens[i] == '-':
+                            result = left - right
+                            if result is None or result.frac < 0:
+                                return None
+                            return result
+
                 return None
-                
-            # 处理括号表达式
-            i = 0
-            while i < len(tokens):
-                if tokens[i] == '(':
-                    j = find_matching_parenthesis(tokens, i)
-                    if j == -1:
-                        return None  # 缺少右括号
-                    
-                    # 递归计算括号内的表达式
-                    inner_result = evaluate(tokens[i+1:j])
-                    if inner_result is None:
-                        return None
-                    
-                    # 用结果替换括号表达式
-                    tokens = tokens[:i] + [str(inner_result)] + tokens[j+1:]
-                else:
-                    i += 1
-            
-            # 如果只有一个token，就是数字
-            if len(tokens) == 1:
-                return ExerciseChecker.parse_fraction(tokens[0])
-            
-            # 先处理乘除
-            for i in range(len(tokens)-1, -1, -1):
-                if tokens[i] in ['×', '÷']:
-                    left = evaluate(tokens[:i])
-                    right = evaluate(tokens[i+1:])
-                    if left is None or right is None:
-                        return None
-                    
-                    if tokens[i] == '×':
-                        result = left * right
-                        # print(f"  乘法: {left} × {right} = {result}")
-                        return result
-                    elif tokens[i] == '÷':
-                        if right.is_zero():
-                            return None
-                        result = left / right
-                        # print(f"  除法: {left} ÷ {right} = {result}")
-                        return result
-            
-            # 再处理加减
-            for i in range(len(tokens)-1, -1, -1):
-                if tokens[i] in ['+', '-']:
-                    left = evaluate(tokens[:i])
-                    right = evaluate(tokens[i+1:])
-                    if left is None or right is None:
-                        return None
-                    
-                    if tokens[i] == '+':
-                        result = left + right
-                        # print(f"  加法: {left} + {right} = {result}")
-                        return result
-                    elif tokens[i] == '-':
-                        result = left - right
-                        if result is None or result.frac < 0:
-                            return None
-                        # print(f"  减法: {left} - {right} = {result}")
-                        return result
-            
+
+            return evaluate(tokens)
+        except:
             return None
-        
-        return evaluate(tokens)
-    
+
     @staticmethod
-    def check_answers(exerciseFile, answerFile):
+    def check_answers(exercise_file, answer_file):
+        """检查答案并生成评分结果"""
         correct = []
         wrong = []
-        
+
         try:
-            with open(exerciseFile,'r',encoding='utf-8') as ef:
+            # 读取题目
+            with open(exercise_file, 'r', encoding='utf-8') as f:
                 exercises = []
-                for line in ef:
-                    exercise = line.strip()
-                    if exercise:
-                        temp = exercise.split('.',1)
-                        if len(temp) == 2:
-                            temp1 = temp[1].strip().replace(' =','')
-                            exercises.append(temp1)
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        parts = line.split('.', 1)
+                        if len(parts) == 2:
+                            expr = parts[1].strip().replace(' =', '')
+                            exercises.append(expr)
 
-            with open(answerFile,'r',encoding='utf-8') as af:
+            # 读取答案
+            with open(answer_file, 'r', encoding='utf-8') as f:
                 answers = []
-                for line in af:
-                    answer = line.strip()
-                    if answer:
-                        temp = answer.split('.',1)
-                        if len(temp) == 2:
-                            temp1 = temp[1].strip()
-                            answers.append(temp1)
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        parts = line.split('.', 1)
+                        if len(parts) == 2:
+                            ans = parts[1].strip()
+                            answers.append(ans)
 
-            # print(f"读取到的题目数量: {len(exercises)}")
-            # print(f"读取到的题目数量: {len(answers)}")
-            
+            # 校验数量匹配
             if len(exercises) != len(answers):
                 raise Exception("错误：题目与答案数量不匹配。")
 
-            length = len(exercises)
-            for i in range(length):
-                exercise = exercises[i]
-                answer = answers[i]
-                
-                # 计算表达式结果
-                calculated_result = ExerciseChecker.parse_exercise(exercise)
-                user_answer = ExerciseChecker.parse_fraction(answer)
-                
-                # print(f"\n第{i+1}题:")
-                # print(f"  表达式: {exercise}")
-                # print(f"  计算结果: {calculated_result}")
-                # print(f"  期望答案: {user_answer}")
-                
-                # 安全地比较结果
-                if (calculated_result is not None and 
-                    user_answer is not None and 
-                    calculated_result == user_answer):
-                    correct.append(str(i+1))
-                    # print("正确\n\n")
+            # 批改每道题
+            for i in range(len(exercises)):
+                calc_result = ExerciseChecker.parse_exercise(exercises[i])
+                user_ans = ExerciseChecker.parse_fraction(answers[i])
+
+                if (calc_result is not None and
+                        user_ans is not None and
+                        calc_result == user_ans):
+                    correct.append(str(i + 1))
                 else:
-                    wrong.append(str(i+1))
-                    # print("错误\n\n")
-            
-            # 输出结果到Grade.txt
-            with open('Grade.txt', 'w', encoding='utf-8') as gf:
-                gf.write(f"Correct: {len(correct)} ({', '.join(sorted(correct, key=int))})\n")
-                gf.write(f"Wrong: {len(wrong)} ({', '.join(sorted(wrong, key=int))})\n")
-            
-            print(f"\n最终结果:")
-            print(f"Correct: {len(correct)} ({', '.join(sorted(correct, key=int))})")
-            print(f"Wrong: {len(wrong)} ({', '.join(sorted(wrong, key=int))})")
-                
+                    wrong.append(str(i + 1))
+
+            # 生成评分文件
+            with open('Grade.txt', 'w', encoding='utf-8') as f:
+                f.write(f"Correct: {len(correct)} ({', '.join(sorted(correct, key=int))})\n")
+                f.write(f"Wrong: {len(wrong)} ({', '.join(sorted(wrong, key=int))})\n")
+
             return correct, wrong
-          
+
         except Exception as e:
-            print(f"检查答案时出错: {e}")
-            import traceback
-            traceback.print_exc()
-            return correct, wrong
-        
+            print(f"批改错误: {e}")
+            raise

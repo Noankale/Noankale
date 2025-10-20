@@ -1,0 +1,19 @@
+[run]
+source =
+    .
+    scripts
+omit =
+    profile_runner.py
+    *_profile.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    if self.debug:
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+
+[html]
+directory = report/coverage_report
